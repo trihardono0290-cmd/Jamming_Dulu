@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitarLive | Real-Time Chord Detection</title>
+    <!-- TailwindCSS v3 CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Space+Mono:wght@700&display=swap" rel="stylesheet">
+    <style>
+        body { 
+            background-color: #111413; /* Very dark green/gray */
+            color: #e2e8f0; 
+            font-family: 'Inter', sans-serif;
+        }
+        
+        h1, h2, .font-mono {
+            font-family: 'Space Mono', monospace;
+        }
+
+        .btn-chord {
+            background-color: #1a201e;
+            border: 1px solid #2d3734;
+            color: #94a3b8;
+            transition: all 0.2s;
+        }
+        .btn-chord:hover {
+            background-color: #242c2a;
+            color: #f8fafc;
+        }
+        .btn-chord.active {
+            background-color: #00d285;
+            border-color: #00d285;
+            color: #020617;
+            font-weight: bold;
+            box-shadow: 0 0 15px rgba(0, 210, 133, 0.4);
+        }
+
+        .main-box {
+            background-color: #151a18;
+            border: 1px solid #232c2a;
+            border-radius: 16px;
+        }
+
+        .primary-btn {
+            background-color: #00d285;
+            color: #020617;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+        .primary-btn:hover {
+            background-color: #00e691;
+            box-shadow: 0 0 20px rgba(0, 210, 133, 0.3);
+        }
+
+        .secondary-btn {
+            background-color: #13241e;
+            color: #00d285;
+            border: 1px solid #1a332a;
+            transition: all 0.2s;
+        }
+        .secondary-btn:hover {
+            background-color: #172b24;
+            border-color: #00d285;
+        }
+
+        /* Result Panel Specifics */
+        .result-panel {
+            display: none; /* Hidden by default */
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid #232c2a;
+        }
+        .result-panel.show {
+            display: block;
+        }
+
+        .result-header-correct {
+            background-color: rgba(0, 210, 133, 0.05);
+            border-bottom: 1px solid rgba(0, 210, 133, 0.2);
+        }
+        .result-header-wrong {
+            background-color: rgba(244, 63, 94, 0.05);
+            border-bottom: 1px solid rgba(244, 63, 94, 0.2);
+        }
+
+        .diagram-box {
+            background-color: #111413;
+            border: 1px solid #232c2a;
+            border-radius: 12px;
+        }
+
+        /* SVG Chord Diagram Styles */
+        .chord-svg text { fill: #94a3b8; font-weight: bold; font-family: 'Space Mono', monospace; font-size: 14px; }
+        .chord-svg line { stroke: #475569; stroke-width: 2; }
+        .chord-svg circle { fill: #00d285; }
+        .chord-svg .finger-text { fill: #020617; font-size: 14px; font-weight: 800; font-family: 'Inter'; }
+        .chord-svg .open-mute { fill: #f43f5e; font-weight: bold; }
+        .chord-svg .open-string { fill: #00d285; font-weight: bold; }
+        
+        .chord-svg-wrong circle { fill: #f43f5e; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center py-6 px-4">
+
+    <!-- Header / Navbar -->
+    <header class="w-full max-w-4xl flex items-center justify-between border-b border-[#232c2a] pb-6 mb-2">
+        <div class="flex items-center gap-3">
+            <!-- Guitar / Soundwave SVG Logo -->
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#00d285] to-[#00f2fe] flex items-center justify-center shadow-lg shadow-[#00d285]/20">
+                <svg class="w-6 h-6 text-[#020617]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path>
+                </svg>
+            </div>
+            <div>
+                <h1 class="text-xl md:text-2xl font-extrabold tracking-tight text-white flex items-center gap-1.5 m-0" style="font-family: 'Inter', sans-serif;">
+                    <span>Jamming</span><span class="text-[#00d285]">Dulu</span>
+                </h1>
+                <p class="text-[10px] text-[#00d285] font-semibold tracking-wide m-0 mt-1 leading-none" style="font-family: 'Inter', sans-serif;">Ngga Jago Gitar?  Jamming aja Dulu</p>
+            </div>
+        </div>
+        
+        <!-- Right side status/badge -->
+        <div class="flex items-center gap-3">
+        </div>
+    </header>
+
+    <main class="w-full max-w-4xl flex flex-col gap-8">
+        
+        <!-- SECTION 1: Pilih Chord -->
+        <div>
+            <h2 class="font-mono text-slate-400 font-bold mb-4 tracking-wider text-sm uppercase">1. Pilih Chord Yang Ingin Di Rekam</h2>
+            <div class="flex flex-wrap gap-3" id="chordSelectorGroup">
+                <!-- Buttons generated by JS to match the design -->
+            </div>
+            <!-- Hidden select to keep logic compatible -->
+            <select id="targetChord" class="hidden">
+                <option value="C" selected>C</option>
+                <option value="D">D</option>
+                <option value="E">E</option>
+                <option value="F">F</option>
+                <option value="G">G</option>
+                <option value="A">A</option>
+                <option value="Am">Am</option>
+                <option value="Em">Em</option>
+                <option value="Dm">Dm</option>
+            </select>
+        </div>
+
+        <!-- SECTION 2: Rekaman -->
+        <div>
+            <h2 class="font-mono text-slate-400 font-bold mb-4 tracking-wider text-sm uppercase flex justify-between">
+                <span>2. Rekam Permainan Chord Gitarmu</span>
+                <span id="connectionStatus" class="flex items-center text-xs text-rose-500 normal-case tracking-normal">
+                    <span class="w-2 h-2 rounded-full bg-rose-500 mr-2 animate-pulse"></span> Disconnected
+                </span>
+            </h2>
+            
+            <div class="main-box p-6 mb-6">
+                <!-- Idle / Recording Area -->
+                <div class="w-full h-40 bg-[#111413] rounded-xl border border-[#232c2a] flex flex-col items-center justify-center relative overflow-hidden" id="visualizerContainer">
+                    
+                    <div id="idleState" class="flex flex-col items-center justify-center absolute inset-0 z-10">
+                        <svg class="w-10 h-10 text-slate-500 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
+                        </svg>
+                        <p class="text-slate-300 font-semibold text-sm">Mikrofon siap merekam akustik gitar Anda</p>
+                    </div>
+
+                    <div id="activeState" class="hidden absolute inset-0 z-10 flex flex-col items-center justify-center pointer-events-none">
+                        <canvas id="visualizerCanvas" class="w-full h-full opacity-60"></canvas>
+                        <div class="absolute inset-0 flex flex-col items-center justify-center">
+                            <div class="w-10 h-10 rounded-full bg-[#00d285] bg-opacity-20 flex items-center justify-center mb-2">
+                                <span class="w-3 h-3 rounded-full bg-[#00d285] animate-ping absolute"></span>
+                                <span class="w-3 h-3 rounded-full bg-[#00d285]"></span>
+                            </div>
+                            <p class="text-[#00d285] font-bold text-sm">Mendengarkan... (Tekan Stop)</p>
+                        </div>
+                    </div>
+
+                    <!-- Review State -->
+                    <div id="reviewState" class="hidden absolute inset-0 z-20 flex flex-col items-center justify-center bg-[#111413]">
+                        <div class="w-10 h-10 rounded-full border-2 border-[#00d285] flex items-center justify-center text-[#00d285] mb-2">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+                        </div>
+                        <p class="text-slate-200 font-bold text-sm mb-3">Audio Terekam Berhasil!</p>
+                        <audio id="audioPlayback" controls class="h-10 max-w-[250px]"></audio>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Buttons Group 1: Idle & Recording -->
+            <div id="recordingActionButtons" class="grid grid-cols-2 gap-4">
+                <button id="btnStart" class="primary-btn py-4 rounded-xl flex items-center justify-center gap-2 text-lg">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
+                    Start
+                </button>
+                <button id="btnStop" class="primary-btn py-4 rounded-xl flex items-center justify-center gap-2 text-lg hidden">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"></path></svg>
+                    Stop (Selesai)
+                </button>
+                
+                <button class="secondary-btn py-4 rounded-xl flex items-center justify-center gap-2 text-lg font-semibold" onclick="window.location.reload()">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                    Refresh Sistem
+                </button>
+            </div>
+
+            <!-- Buttons Group 2: Review (Rekam Ulang / Koreksi) -->
+            <div id="reviewActionButtons" class="hidden grid grid-cols-2 gap-4">
+                <button id="btnRetake" class="primary-btn py-4 rounded-xl flex items-center justify-center gap-2 text-lg">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
+                    Rekam Ulang
+                </button>
+                <button id="btnSubmit" class="secondary-btn py-4 rounded-xl flex items-center justify-center gap-2 text-lg font-semibold">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path></svg>
+                    Koreksi Rekaman
+                </button>
+            </div>
+        </div>
+
+        <!-- SECTION 3: Result Panel -->
+        <div id="resultPanel" class="result-panel main-box mt-4">
+            
+            <!-- Header Result -->
+            <div id="resultHeader" class="p-6 flex justify-between items-center result-header-correct">
+                <div class="flex items-center gap-4">
+                    <div id="resultIcon" class="w-10 h-10 rounded-full bg-[#00d285] bg-opacity-20 border border-[#00d285] flex items-center justify-center text-[#00d285]">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+                    </div>
+                    <div>
+                        <p class="font-mono text-xs font-bold text-slate-400 tracking-wider mb-1">HASIL KLASIFIKASI CNN</p>
+                        <h3 id="resultTitle" class="text-xl font-extrabold text-white">Chord Benar (Sesuai Target)</h3>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <p class="font-mono text-xs font-bold text-slate-400 tracking-wider mb-1">CONFIDENCE</p>
+                    <h3 id="confidenceValue" class="text-3xl font-extrabold text-[#00d285]">0.0%</h3>
+                </div>
+            </div>
+
+            <!-- Body Result -->
+            <div class="p-8 grid grid-cols-1 md:grid-cols-3 gap-8">
+                
+                <!-- Diagram -->
+                <div class="flex flex-col">
+                    <p class="font-mono text-xs font-bold text-slate-400 tracking-wider mb-4">DIAGRAM YANG BENAR</p>
+                    <div id="chordDiagramContainer" class="diagram-box aspect-[3/4] p-4 flex items-center justify-center">
+                        <!-- SVG -->
+                    </div>
+                </div>
+
+                <!-- Text Result -->
+                <div class="col-span-2 flex flex-col gap-4">
+                    <div class="mb-2">
+                        <p class="text-xl font-bold text-white mb-1">Target Chord: <span id="lblTarget">C</span></p>
+                        <p class="text-slate-400 text-lg">Prediksi Chord: <span id="lblPrediksi" class="font-bold text-white">C</span></p>
+                    </div>
+
+                    <div class="bg-[#111413] border border-[#232c2a] rounded-xl p-5">
+                        <p class="text-[#00d285] font-bold mb-3">Panduan Koreksi Posisi Jari:</p>
+                        <ul id="fingeringGuide" class="list-disc list-outside ml-5 text-slate-300 space-y-2 text-sm leading-relaxed">
+                            <!-- Injected by JS -->
+                        </ul>
+                    </div>
+
+                    <!-- Wrong Warning Box -->
+                    <div id="wrongWarningBox" class="hidden bg-rose-500 bg-opacity-10 border border-rose-500/30 rounded-xl p-5 mt-2">
+                        <p class="text-rose-400 text-sm italic font-medium leading-relaxed" id="wrongWarningText">
+                            ⚠️ Hasil petikan Anda salah, model mengenali bunyi ini sebagai chord A. Silakan perhatikan penempatan jari pada diagram dan rapihkan fretboard sebelum mencoba kembali.
+                        </p>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Hidden Audio Notification Elements -->
+    <audio id="soundCorrect" src="assets/sounds/correct.mp3" preload="auto"></audio>
+    <audio id="soundWrong" src="assets/sounds/wrong.mp3" preload="auto"></audio>
+
+    <script src="src/app.js"></script>
+</body>
+</html>

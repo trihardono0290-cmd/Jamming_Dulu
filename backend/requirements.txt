@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+python-multipart
+soundfile
+librosa
+numpy
+matplotlib
+Pillow
+tensorflow
+scikit-learn
+seaborn
